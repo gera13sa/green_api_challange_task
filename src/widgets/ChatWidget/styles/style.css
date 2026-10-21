@@ -1,0 +1,140 @@
+.chat-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: var(--max-color-bg-secondary, #eef3f8);
+}
+
+.chat-panel--empty {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+}
+
+.chat-panel__header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 6px;
+    background: var(--max-color-bg-primary, #f4f8fc);
+    border-bottom: 1px solid var(--max-color-stroke-separator, #d5e2ef);
+}
+
+.chat-panel__header-text {
+    min-width: 0;
+}
+
+.back-button {
+    display: none;
+}
+
+.back-icon {
+    display: flex;
+    vertical-align: center;
+    align-items: center;
+    align-content: center;
+    transform: rotate(180deg);
+}
+
+.chat-panel__messages {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+}
+
+.day-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.day-label {
+    align-self: center;
+    margin: 4px 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.bubble {
+    max-width: min(70%, 560px);
+    padding: 8px 10px 6px;
+    border-radius: 14px;
+    box-shadow: 0 1px 1px rgba(16, 32, 51, 0.06);
+}
+
+.bubble--in {
+    align-self: flex-start;
+    background: #fff;
+    border-bottom-left-radius: 4px;
+}
+
+.bubble--out {
+    align-self: flex-end;
+    background: #007aff;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.bubble__author {
+    display: block;
+    margin-bottom: 2px;
+    color: #007aff;
+}
+
+.bubble__meta {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 4px;
+    color: #5c6f82;
+    font-size: 11px;
+}
+
+.status {
+    font-style: normal;
+    letter-spacing: -1px;
+}
+
+.status--read {
+    color: #007aff;
+}
+
+.bubble--out .bubble__meta,
+.bubble--out .status,
+.bubble--out .status--read {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.composer {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    align-items: center;
+    background: var(--max-color-bg-primary, #f4f8fc);
+    border-top: 1px solid var(--max-color-stroke-separator, #d5e2ef);
+}
+
+.composer > :first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.composer textarea {
+    min-height: 42px;
+    max-height: 120px;
+    resize: vertical;
+}
+
+@media (max-width: 860px) {
+    .back-button {
+        display: inline-flex;
+    }
+
+    .bubble {
+        max-width: 88%;
+    }
+}

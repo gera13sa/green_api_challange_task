@@ -1,0 +1,13 @@
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE_URL: ""
+        VITE_IS_DEV: "false"
+        VITE_TIMEOUT_INTERVAL: "10000"
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"

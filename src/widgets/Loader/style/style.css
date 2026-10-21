@@ -1,0 +1,31 @@
+.spinner-loader-container {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    margin: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.loader-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.loader-modal-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    min-height: 120px;
+    padding: 16px;
+    background: var(--max-color-bg-primary, #fff);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}

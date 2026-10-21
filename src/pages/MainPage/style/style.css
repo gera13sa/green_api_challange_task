@@ -1,0 +1,41 @@
+.messenger {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+    min-height: 100%;
+    background: #fff;
+}
+
+.messenger__body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: min(max(30%, 320px), 450px) minmax(0, 1fr);
+}
+
+.suspended-banner {
+    margin: 0;
+    padding: 10px 16px;
+    background: #fff4e5;
+    color: #8a5a12;
+    font-size: 14px;
+}
+
+@media (max-width: 860px) {
+    .messenger__body {
+        grid-template-columns: 1fr;
+    }
+
+    .messenger .chat-panel {
+        display: none;
+    }
+
+    .messenger--open .chat-list {
+        display: none;
+    }
+
+    .messenger--open .chat-panel {
+        display: flex;
+    }
+}

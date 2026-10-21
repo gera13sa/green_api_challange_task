@@ -1,0 +1,27 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    color: var(--max-color-text-primary, #102033);
+    background: var(--max-color-bg-secondary, #e7eef6);
+}
+
+/* MaxUI root must fill the viewport so Panel height: 100% resolves correctly */
+#root > * {
+    height: 100%;
+    min-height: 100%;
+}
+
+.screen-loader {
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
