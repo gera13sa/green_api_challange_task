@@ -37,6 +37,15 @@ export interface AuthorizationPasswordResponse {
 	};
 }
 
+export interface AuthorizationFlowResponse {
+	status: boolean;
+	data: {
+		status: 'success' | 'fail' | 'succes';
+		reason: string;
+		retryAfter?: number;
+	};
+}
+
 export interface LogoutResponse {
 	isLogout: boolean;
 }
@@ -150,6 +159,8 @@ export interface ChatHistoryItem {
 export interface MaxApi {
 	getStateInstance: () => Promise<StateInstanceResponse>;
 	getQr: () => Promise<QrResponse>;
+	startAuthorization: (phoneNumber: number) => Promise<AuthorizationFlowResponse>;
+	sendAuthorizationCode: (code: string) => Promise<AuthorizationFlowResponse>;
 	sendAuthorizationPassword: (password: string) => Promise<AuthorizationPasswordResponse>;
 	logout: () => Promise<LogoutResponse>;
 	sendMessage: (body: SendMessageRequest) => Promise<SendMessageResponse>;

@@ -14,12 +14,15 @@ import {Loader} from '@widgets/Loader';
 import {
 	extractErrorMessage,
 	MOCK_CLOUD_PASSWORD,
+	MOCK_SMS_CODE,
 	type QrResponse,
 } from '@shared/api/max';
 import {readMaxEnvDefaults} from '@shared/config/maxEnv.ts';
 import {useDocumentTitle} from '@shared/hooks/useDocumentTitle.ts';
 
 import '../styles/style.css';
+
+type AuthMode = 'qr' | 'phone' | 'code';
 
 const PASSWORD_REASONS: Record<string, string> = {
 	invalid_password: 'Неверный пароль',
@@ -31,8 +34,26 @@ const PASSWORD_REASONS: Record<string, string> = {
 	time_limit_expired_logout: 'Время ввода пароля истекло',
 };
 
+const AUTH_FLOW_REASONS: Record<string, string> = {
+	invalid_phone_number: 'Некорректный номер телефона',
+	invalid_code: 'Неверный код из SMS',
+	rate_limit_exceeded: 'Слишком много попыток, попробуйте позже',
+	authorization_not_started: 'Сначала запросите код по номеру телефона',
+	already_registered: 'Инстанс уже авторизован',
+	attempts_exceeded: 'Превышено число попыток',
+	timeout: 'Время ожидания истекло',
+};
+
 function passwordReason(reason: string): string {
 	return PASSWORD_REASONS[reason] || reason || 'Не удалось подтвердить пароль';
+}
+
+function authFlowReason(reason: string): string {
+	return AUTH_FLOW_REASONS[reason] || reason || 'Не удалось выполнить авторизацию';
+}
+
+function isAuthFlowSuccess(status: string): boolean {
+	return status === 'success' || status === 'succes';
 }
 
 function qrImageSrc(message: string): string {
@@ -41,6 +62,18 @@ function qrImageSrc(message: string): string {
 		return trimmed;
 	}
 	return `data:image/png;base64,${trimmed}`;
+}
+
+function normalizePhoneDigits(value: string): string {
+	return value.replace(/\D/g, '');
+}
+
+function parsePhoneNumber(value: string): number | null {
+	const digits = normalizePhoneDigits(value);
+	if (!/^7\d{10}$/.test(digits) && !/^375\d{9}$/.test(digits)) {
+		return null;
+	}
+	return Number(digits);
 }
 
 
@@ -70,6 +103,11 @@ export const LoginPage = () => {
 	const [scanning, setScanning] = useState(false);
 	const [password, setPassword] = useState('');
 	const [passwordLoading, setPasswordLoading] = useState(false);
+	const [authMode, setAuthMode] = useState<AuthMode>('qr');
+	const [phone, setPhone] = useState('');
+	const [smsCode, setSmsCode] = useState('');
+	const [phoneLoading, setPhoneLoading] = useState(false);
+	const [codeLoading, setCodeLoading] = useState(false);
 
 
 	useEffect(() => {
@@ -88,7 +126,7 @@ export const LoginPage = () => {
 	}, [session, stateInstance, refreshState]);
 
 	useEffect(() => {
-		if (!api || stateInstance !== 'notAuthorized') {
+		if (!api || stateInstance !== 'notAuthorized' || authMode !== 'qr') {
 			return;
 		}
 
@@ -130,7 +168,16 @@ export const LoginPage = () => {
 			cancelled = true;
 			window.clearInterval(timer);
 		};
-	}, [api, stateInstance, refreshState]);
+	}, [api, stateInstance, refreshState, authMode]);
+
+	useEffect(() => {
+		if (stateInstance !== 'notAuthorized') {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setAuthMode('qr');
+			setPhone('');
+			setSmsCode('');
+		}
+	}, [stateInstance]);
 
 	if (isLoading) {
 		return <div className="screen-loader"><Loader/></div>;
@@ -176,6 +223,58 @@ export const LoginPage = () => {
 		}
 	};
 
+	const onStartPhoneAuth = async (event: FormEvent) => {
+		event.preventDefault();
+		if (!api) {
+			return;
+		}
+		const phoneNumber = parsePhoneNumber(phone);
+		if (phoneNumber == null) {
+			toast.error('Введите номер в формате 79XXXXXXXXX или 375XXXXXXXXX');
+			return;
+		}
+		setPhoneLoading(true);
+		try {
+			const response = await api.startAuthorization(phoneNumber);
+			if (!response.status || !isAuthFlowSuccess(response.data.status)) {
+				toast.error(authFlowReason(response.data.reason));
+				return;
+			}
+			setSmsCode('');
+			setAuthMode('code');
+			toast.success('Код отправлен в SMS');
+		} catch (error: unknown) {
+			toast.error(extractErrorMessage(error));
+		} finally {
+			setPhoneLoading(false);
+		}
+	};
+
+	const onSendCode = async (event: FormEvent) => {
+		event.preventDefault();
+		if (!api) {
+			return;
+		}
+		const code = smsCode.trim();
+		if (!code) {
+			toast.error('Введите код из SMS');
+			return;
+		}
+		setCodeLoading(true);
+		try {
+			const response = await api.sendAuthorizationCode(code);
+			if (!response.status || !isAuthFlowSuccess(response.data.status)) {
+				toast.error(authFlowReason(response.data.reason));
+				return;
+			}
+			await refreshState();
+		} catch (error: unknown) {
+			toast.error(extractErrorMessage(error));
+		} finally {
+			setCodeLoading(false);
+		}
+	};
+
 	const onPassword = async (event: FormEvent) => {
 		event.preventDefault();
 		if (!api) {
@@ -210,8 +309,15 @@ export const LoginPage = () => {
 		}
 	};
 
+	const backToQr = () => {
+		setAuthMode('qr');
+		setSmsCode('');
+	};
+
 	const showCredentials = !session || stateInstance === null;
-	const showQr = stateInstance === 'notAuthorized';
+	const showQr = stateInstance === 'notAuthorized' && authMode === 'qr';
+	const showPhone = stateInstance === 'notAuthorized' && authMode === 'phone';
+	const showCode = stateInstance === 'notAuthorized' && authMode === 'code';
 	const showPassword = stateInstance === 'pendingPassword';
 	const showStarting = stateInstance === 'starting';
 	const showBlocked = stateInstance === 'blocked';
@@ -291,9 +397,92 @@ export const LoginPage = () => {
 								</Button>
 							) : null}
 							<div>или</div>
-							<Button variant={'secondary'} stretched>Войти по номеру телефона</Button>
+							<Button
+								variant="secondary"
+								stretched
+								onClick={() => setAuthMode('phone')}
+							>
+								Войти по номеру телефона
+							</Button>
 							<Button variant="ghost" stretched onClick={clearSession}>Другой инстанс</Button>
 						</Flex>
+					) : null}
+
+					{showPhone ? (
+						<form className="auth-form" onSubmit={(event) => void onStartPhoneAuth(event)}>
+							<Flex direction="column" gap={12}>
+								<Typography.Text color="secondary">
+									Введите номер телефона без «+». Метод StartAuthorization отправит SMS с кодом.
+								</Typography.Text>
+								<label className="field">
+									<Typography.Label variant="small-strong">Номер телефона</Typography.Label>
+									<Input
+										value={phone}
+										inputMode="tel"
+										autoComplete="tel"
+										placeholder="79001234567"
+										onChange={(event) => setPhone(event.target.value)}
+										withClearButton
+									/>
+								</label>
+								<Button
+									type="submit"
+									stretched
+									loading={phoneLoading}
+									disabled={!normalizePhoneDigits(phone)}
+								>
+									Получить код
+								</Button>
+								<Button variant="ghost" stretched type="button" onClick={backToQr}>
+									Назад к QR
+								</Button>
+							</Flex>
+						</form>
+					) : null}
+
+					{showCode ? (
+						<form className="auth-form" onSubmit={(event) => void onSendCode(event)}>
+							<Flex direction="column" gap={12}>
+								<Typography.Text color="secondary">
+									Введите код из SMS. Он будет отправлен методом SendAuthorizationCode.
+								</Typography.Text>
+								{session?.useMocks ? (
+									<Typography.Label variant="small-strong" className="auth-note">
+										Мок-код: {MOCK_SMS_CODE}
+									</Typography.Label>
+								) : null}
+								<label className="field">
+									<Typography.Label variant="small-strong">Код из SMS</Typography.Label>
+									<Input
+										value={smsCode}
+										inputMode="numeric"
+										autoComplete="one-time-code"
+										placeholder="123456"
+										onChange={(event) => setSmsCode(event.target.value)}
+										withClearButton
+									/>
+								</label>
+								<Button
+									type="submit"
+									stretched
+									loading={codeLoading}
+									disabled={!smsCode.trim()}
+								>
+									Подтвердить код
+								</Button>
+								<Button
+									variant="ghost"
+									stretched
+									type="button"
+									onClick={() => setAuthMode('phone')}
+								>
+									Изменить номер
+								</Button>
+								<Button variant="ghost" stretched type="button" onClick={backToQr}>
+									Назад к QR
+								</Button>
+							</Flex>
+						</form>
 					) : null}
 
 					{showPassword ? (

@@ -17,6 +17,7 @@ import type {
 	StateInstanceResponse,
 	GetChatHistoryRequest,
 	DeleteNotificationResponse,
+	AuthorizationFlowResponse,
 	AuthorizationPasswordResponse,
 } from './types';
 
@@ -58,6 +59,20 @@ export function createHttpMaxApi(session: MaxSession): MaxApi {
 			return account.schedule(() => unwrap<QrResponse>(
 				http.get(endpoint(session, 'qr')),
 			));
+		},
+
+		startAuthorization(phoneNumber) {
+			return account.schedule(() => unwrap<AuthorizationFlowResponse>(http.post(
+				endpoint(session, 'startAuthorization'),
+				{phoneNumber},
+			)));
+		},
+
+		sendAuthorizationCode(code) {
+			return account.schedule(() => unwrap<AuthorizationFlowResponse>(http.post(
+				endpoint(session, 'sendAuthorizationCode'),
+				{code},
+			)));
 		},
 
 		sendAuthorizationPassword(password) {

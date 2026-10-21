@@ -1,4 +1,5 @@
 import type {
+	AuthorizationFlowResponse,
 	AuthorizationPasswordResponse,
 	ChatHistoryItem,
 	ChatSummary,
@@ -15,10 +16,12 @@ import type {
 } from './types';
 
 export const MOCK_CLOUD_PASSWORD = '123456';
+export const MOCK_SMS_CODE = '123456';
 
 interface MockData {
 	state: InstanceState;
 	requirePassword: boolean;
+	phoneAuthStarted: boolean;
 	nextReceiptId: number;
 	queue: Notification[];
 	chats: ChatSummary[];
@@ -49,6 +52,7 @@ function persist(runtime: MockRuntime): void {
 	try {
 		sessionStorage.setItem(storageKey(runtime.session), JSON.stringify(runtime.data));
 	} catch {
+		return;
 	}
 }
 
@@ -185,6 +189,7 @@ function createSeed(): MockData {
 	return {
 		state: 'notAuthorized',
 		requirePassword: false,
+		phoneAuthStarted: false,
 		nextReceiptId: 1000,
 		queue: [],
 		chats: [
@@ -240,14 +245,17 @@ function getRuntime(session: MaxSession): MockRuntime {
 	const key = storageKey(session);
 	let runtime = runtimes.get(key);
 	if (!runtime) {
+		const data = loadData(session) ?? createSeed();
+		data.phoneAuthStarted = data.phoneAuthStarted ?? false;
 		runtime = {
 			session,
-			data: loadData(session) ?? createSeed(),
+			data,
 		};
 		runtimes.set(key, runtime);
 	}
 	runtime.session = session;
 	runtime.data.requirePassword = session.requirePassword;
+	runtime.data.phoneAuthStarted = runtime.data.phoneAuthStarted ?? false;
 	return runtime;
 }
 
@@ -337,6 +345,18 @@ function failPassword(reason: string): AuthorizationPasswordResponse {
 	};
 }
 
+function failAuthFlow(reason: string, retryAfter?: number): AuthorizationFlowResponse {
+	return {
+		status: false,
+		data: {status: 'fail', reason, retryAfter},
+	};
+}
+
+function isValidMockPhone(phoneNumber: number): boolean {
+	const digits = String(phoneNumber);
+	return /^7\d{10}$/.test(digits) || /^375\d{9}$/.test(digits);
+}
+
 function scheduleStatus(runtime: MockRuntime, chatId: string, id: string, status: MessageStatus, delay: number): void {
 	window.setTimeout(() => {
 		if (runtime.data.state !== 'authorized' && runtime.data.state !== 'suspended') {
@@ -421,6 +441,7 @@ export function createMockMaxApi(session: MaxSession): MaxApi {
 			if (runtime.data.state === 'authorized' || runtime.data.state === 'suspended') {
 				return;
 			}
+			runtime.data.phoneAuthStarted = false;
 			runtime.data.state = runtime.data.requirePassword ? 'pendingPassword' : 'authorized';
 			enqueue(runtime, {
 				typeWebhook: 'stateInstanceChanged',
@@ -428,6 +449,50 @@ export function createMockMaxApi(session: MaxSession): MaxApi {
 				stateInstance: runtime.data.state,
 				instanceData: instanceData(runtime.session),
 			});
+		},
+
+		async startAuthorization(phoneNumber) {
+			await sleep(LATENCY_MS);
+			if (runtime.data.state === 'authorized' || runtime.data.state === 'suspended') {
+				return failAuthFlow('already_registered');
+			}
+			if (runtime.data.state !== 'notAuthorized') {
+				return failAuthFlow('authorization_not_started');
+			}
+			if (!Number.isFinite(phoneNumber) || !isValidMockPhone(phoneNumber)) {
+				return failAuthFlow('invalid_phone_number');
+			}
+			runtime.data.phoneAuthStarted = true;
+			persist(runtime);
+			return {
+				status: true,
+				data: {status: 'success', reason: ''},
+			};
+		},
+
+		async sendAuthorizationCode(code) {
+			await sleep(LATENCY_MS);
+			if (runtime.data.state === 'authorized' || runtime.data.state === 'suspended') {
+				return failAuthFlow('already_registered');
+			}
+			if (!runtime.data.phoneAuthStarted || runtime.data.state !== 'notAuthorized') {
+				return failAuthFlow('authorization_not_started');
+			}
+			if (code.trim() !== MOCK_SMS_CODE) {
+				return failAuthFlow('invalid_code');
+			}
+			runtime.data.phoneAuthStarted = false;
+			runtime.data.state = runtime.data.requirePassword ? 'pendingPassword' : 'authorized';
+			enqueue(runtime, {
+				typeWebhook: 'stateInstanceChanged',
+				timestamp: Math.floor(Date.now() / 1000),
+				stateInstance: runtime.data.state,
+				instanceData: instanceData(runtime.session),
+			});
+			return {
+				status: true,
+				data: {status: 'success', reason: ''},
+			};
 		},
 
 		async sendAuthorizationPassword(password) {
@@ -457,6 +522,7 @@ export function createMockMaxApi(session: MaxSession): MaxApi {
 		async logout() {
 			await sleep(LATENCY_MS);
 			runtime.data.state = 'notAuthorized';
+			runtime.data.phoneAuthStarted = false;
 			runtime.data.queue = [];
 			persist(runtime);
 			return {isLogout: true};
