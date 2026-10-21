@@ -396,14 +396,14 @@ export const LoginPage = () => {
 									Имитировать сканирование
 								</Button>
 							) : null}
-							<div>или</div>
-							<Button
-								variant="secondary"
-								stretched
-								onClick={() => setAuthMode('phone')}
-							>
-								Войти по номеру телефона
-							</Button>
+							{/*<div>или</div>*/}
+							{/*<Button*/}
+							{/*	variant="secondary"*/}
+							{/*	stretched*/}
+							{/*	onClick={() => setAuthMode('phone')}*/}
+							{/*>*/}
+							{/*	Войти по номеру телефона*/}
+							{/*</Button>*/}
 							<Button variant="ghost" stretched onClick={clearSession}>Другой инстанс</Button>
 						</Flex>
 					) : null}

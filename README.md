@@ -29,3 +29,11 @@
 * Выполнить `docker compose up -d`
 
 
+
+## Скриншоты
+
+![img.png](src/assets/img.png)
+
+![img.png](src/assets/img2.png)
+
+![img.png](src/assets/img3.png)
